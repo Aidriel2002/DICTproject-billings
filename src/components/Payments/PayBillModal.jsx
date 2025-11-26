@@ -42,33 +42,33 @@ export const PayBillModal = ({ open, payment, onClose, onUpdate }) => {
 
   useEffect(() => {
     if (open) {
-      // initialize inputs from payment if available
       setAmount(payment?.paidAmount ?? payment?.amountPaid ?? "");
       setReference(payment?.referenceNumber ?? "");
       setInstallationFee(payment?.installationFee ?? "");
-      console.log("PayBillModal opened - payment prop:", payment);
     }
   }, [open, payment]);
 
   if (!open) return null;
 
   const handleSubmit = () => {
-    // Validate required Reference Number
     if (!reference.trim()) {
       alert("Reference Number is required!");
       return;
     }
+
+    const fee = Number(installationFee || 0);
+    const now = new Date().toISOString();
 
     const payload = {
       ...payment,
       remarks: "Paid",
       paidAmount: Number(amount),
       referenceNumber: reference,
-      installationFee: installationFee ? Number(installationFee) : 0,
-      payment_date: new Date().toISOString()
+      installationFee: fee,
+      paymentDate: now,
+      payment_date: now
     };
 
-    console.log("PayBillModal submit payload:", payload);
     onUpdate(payload);
   };
 
@@ -77,20 +77,20 @@ export const PayBillModal = ({ open, payment, onClose, onUpdate }) => {
       <div style={modalStyles.modal}>
         <h3>Pay Bill</h3>
 
-        <label>Amount</label>
+        <label>Monthly Payment</label>
         <input
           type="number"
           style={modalStyles.input}
-          placeholder="Enter amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
 
-        <label>Reference Number <span style={{ color: "red" }}>*</span></label>
+        <label>
+          Reference Number <span style={{ color: "red" }}>*</span>
+        </label>
         <input
           type="text"
           style={modalStyles.input}
-          placeholder="Reference #"
           value={reference}
           onChange={(e) => setReference(e.target.value)}
         />
@@ -99,9 +99,10 @@ export const PayBillModal = ({ open, payment, onClose, onUpdate }) => {
         <input
           type="number"
           style={modalStyles.input}
-          placeholder="Enter installation fee"
           value={installationFee}
-          onChange={(e) => setInstallationFee(e.target.value)}
+          onChange={(e) =>
+            setInstallationFee(e.target.value === "" ? "" : Number(e.target.value))
+          }
         />
 
         <div style={modalStyles.buttonRow}>

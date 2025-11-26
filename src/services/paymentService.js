@@ -1,17 +1,25 @@
 import { supabase } from './supabaseClient';
 
-export const loadPayments = async (userId) => {
-  const { data, error } = await supabase
+export const loadPayments = async (userIds) => {
+  const ids = Array.isArray(userIds) ? userIds : [userIds];
+
+  const query = supabase
     .from('payments')
-    .select('*')
-    .eq('user_id', userId);
+    .select('*');
+
+  if (ids.length === 1) {
+    query.eq('user_id', ids[0]);
+  } else {
+    query.in('user_id', ids);
+  }
+
+  const { data, error } = await query;
   
   if (error) {
     console.error('Error loading payments:', error);
     throw error;
   }
   
-  // Convert snake_case to camelCase
   return (data || []).map(payment => ({
     id: payment.id,
     userId: payment.user_id,
@@ -28,7 +36,6 @@ export const loadPayments = async (userId) => {
 };
 
 export const addPayment = async (payment, userId) => {
-  // Convert camelCase to snake_case
   const newPayment = {
     id: Date.now(),
     user_id: userId,
@@ -51,7 +58,6 @@ export const addPayment = async (payment, userId) => {
     throw error;
   }
   
-  // Return in camelCase format
   return {
     id: newPayment.id,
     userId: newPayment.user_id,
@@ -67,7 +73,6 @@ export const addPayment = async (payment, userId) => {
 };
 
 export const updatePayment = async (payment) => {
-  // Convert camelCase to snake_case
   const updateData = {
     site_name: payment.siteName,
     account_name: payment.accountName,

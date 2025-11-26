@@ -6,14 +6,12 @@ export const PaymentTable = ({
   phase, 
   payments, 
   onEdit, 
-  onDelete, 
-  onOpenPayBill 
+  onDelete
 }) => {
 
-  const phasePayments = payments.filter(p => p.phase === phase);
-  const total = phasePayments.reduce((sum, p) => sum + p.monthlyPayment, 0);
+  const total = payments.reduce((sum, p) => sum + p.monthlyPayment, 0);
 
-  if (phasePayments.length === 0) return null;
+  if (payments.length === 0) return null;
 
   return (
     <div style={styles.phaseSection}>
@@ -35,7 +33,7 @@ export const PaymentTable = ({
           </thead>
 
           <tbody>
-            {phasePayments.map(payment => (
+            {payments.map(payment => (
               <tr key={payment.id} style={styles.tableRow}>
                 <td style={styles.td}>
                   <span 
@@ -56,13 +54,6 @@ export const PaymentTable = ({
                 <td style={styles.td}>
                   <button onClick={() => onEdit(payment)} style={styles.editButton}>Edit</button>
                   <button onClick={() => onDelete(payment.id)} style={styles.deleteButton}>Delete</button>
-
-                  <button
-                    onClick={() => onOpenPayBill(payment)}
-                    style={styles.payBillButton}
-                  >
-                    Pay Bill
-                  </button>
                 </td>
               </tr>
             ))}
@@ -70,7 +61,7 @@ export const PaymentTable = ({
 
           <tfoot>
             <tr style={styles.totalRow}>
-              <td colSpan="8" style={styles.totalLabel}>Phase Total:</td>
+              <td colSpan="7" style={styles.totalLabel}>Phase Total:</td>
               <td style={styles.totalAmount}>₱{total.toLocaleString()}</td>
             </tr>
           </tfoot>

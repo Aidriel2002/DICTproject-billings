@@ -1,7 +1,7 @@
 import React from 'react';
 import { styles } from '../../styles/styles';
 
-const Navigation = ({ activeTab, setActiveTab }) => {
+const Navigation = ({ activeTab, setActiveTab,onDownloadData }) => {
   return (
     <nav style={styles.nav}>
       <button
@@ -24,6 +24,24 @@ const Navigation = ({ activeTab, setActiveTab }) => {
       >
         Payment History
       </button>
+
+      <button
+        onClick={() => setActiveTab('access')}
+        style={activeTab === 'access' ? styles.navButtonActive : styles.navButton}
+      >
+        Access
+      </button>
+
+      <button
+        onClick={() => setActiveTab('activity')}
+        style={activeTab === 'activity' ? styles.navButtonActive : styles.navButton}
+      >
+        Activity Logs
+      </button>
+      
+       <button onClick={onDownloadData} style={styles.shareButton}>
+                Download Data
+              </button>
     </nav>
   );
 };

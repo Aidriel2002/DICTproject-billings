@@ -14,4 +14,4 @@ export const NotificationBar = ({ notifications, onClose }) => {
   );
 };
 
-export default NotificationBar;  // Add default export
+export default NotificationBar;  

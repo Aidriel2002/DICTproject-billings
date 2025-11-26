@@ -1,11 +1,20 @@
 import { supabase } from './supabaseClient';
 
-export const loadPaymentHistory = async (userId) => {
-  const { data, error } = await supabase
+export const loadPaymentHistory = async (userIds) => {
+  const ids = Array.isArray(userIds) ? userIds : [userIds];
+
+  const query = supabase
     .from('payment_history')
     .select('*')
-    .eq('user_id', userId)
     .order('payment_date', { ascending: false });
+
+  if (ids.length === 1) {
+    query.eq('user_id', ids[0]);
+  } else {
+    query.in('user_id', ids);
+  }
+
+  const { data, error } = await query;
   
   if (error) {
     console.error('Error loading payment history:', error);
@@ -20,8 +29,8 @@ export const loadPaymentHistory = async (userId) => {
     accountName: history.account_name,
     accountNumber: history.account_number,
     amountPaid: history.amount_paid,
+    installationFee: history.installation_fee || 0,
     paymentDate: history.payment_date,
-    paymentMethod: history.payment_method,
     referenceNumber: history.reference_number,
     notes: history.notes,
     createdAt: history.created_at
@@ -36,9 +45,9 @@ export const addPaymentHistory = async (history, userId) => {
     site_name: history.siteName,
     account_name: history.accountName,
     account_number: history.accountNumber,
-    amount_paid: history.amountPaid,
-    payment_date: history.paymentDate,
-    payment_method: history.paymentMethod,
+    amount_paid: history.amountPaid || history.paidAmount || 0,
+    installation_fee: history.installationFee || 0,
+    payment_date: history.paymentDate || history.payment_date || new Date().toISOString(),
     reference_number: history.referenceNumber,
     notes: history.notes
   };
@@ -60,8 +69,8 @@ export const addPaymentHistory = async (history, userId) => {
     accountName: newHistory.account_name,
     accountNumber: newHistory.account_number,
     amountPaid: newHistory.amount_paid,
+    installationFee: newHistory.installation_fee,
     paymentDate: newHistory.payment_date,
-    paymentMethod: newHistory.payment_method,
     referenceNumber: newHistory.reference_number,
     notes: newHistory.notes
   };
@@ -69,9 +78,9 @@ export const addPaymentHistory = async (history, userId) => {
 
 export const updatePaymentHistory = async (history) => {
   const updateData = {
-    amount_paid: history.amountPaid,
+    amount_paid: history.amountPaid || history.paidAmount,
+    installation_fee: history.installationFee || 0,
     payment_date: history.paymentDate,
-    payment_method: history.paymentMethod,
     reference_number: history.referenceNumber,
     notes: history.notes
   };
@@ -122,8 +131,8 @@ export const getPaymentHistoryByPaymentId = async (paymentId, userId) => {
     accountName: history.account_name,
     accountNumber: history.account_number,
     amountPaid: history.amount_paid,
+    installationFee: history.installation_fee || 0,
     paymentDate: history.payment_date,
-    paymentMethod: history.payment_method,
     referenceNumber: history.reference_number,
     notes: history.notes,
     createdAt: history.created_at
