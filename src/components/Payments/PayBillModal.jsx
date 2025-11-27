@@ -57,7 +57,20 @@ export const PayBillModal = ({ open, payment, onClose, onUpdate }) => {
     }
 
     const fee = Number(installationFee || 0);
-    const now = new Date().toISOString();
+    
+    const now = new Date();
+    const phFormatter = new Intl.DateTimeFormat("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Manila"
+    });
+    
+    const phDisplayString = phFormatter.format(now);
 
     const payload = {
       ...payment,
@@ -65,8 +78,8 @@ export const PayBillModal = ({ open, payment, onClose, onUpdate }) => {
       paidAmount: Number(amount),
       referenceNumber: reference,
       installationFee: fee,
-      paymentDate: now,
-      payment_date: now
+      paymentDate: phDisplayString, 
+      payment_date: phDisplayString
     };
 
     onUpdate(payload);
