@@ -268,5 +268,4 @@ const PaymentHistoryList = ({ history = [], logoUrl = "/logo.png" }) => {
     </>
   );
 };
-
 export default PaymentHistoryList;
