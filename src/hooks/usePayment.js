@@ -16,7 +16,6 @@ export const usePayments = (accountIdOverride = null) => {
     }
   }, [user, targetAccountId]);
 
-  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       Object.values(timeoutsRef.current).forEach(clearTimeout);
@@ -69,7 +68,6 @@ export const usePayments = (accountIdOverride = null) => {
         { siteName: payment.siteName, remarks: payment.remarks }
       );
 
-      // If payment was marked as Paid and we have payment details, add to history
       if (payment.remarks === 'Paid' && addToHistory && payment.paidAmount) {
         const historyEntry = {
           paymentId: payment.id,
@@ -86,14 +84,12 @@ export const usePayments = (accountIdOverride = null) => {
         await addToHistory(historyEntry);
       }
 
-      // If the payment was marked as Paid, set up auto-revert
       if (payment.remarks === 'Paid') {
-        // Clear any existing timeout for this payment
+      
         if (timeoutsRef.current[payment.id]) {
           clearTimeout(timeoutsRef.current[payment.id]);
         }
 
-        // Set new timeout to revert after 15 days
         timeoutsRef.current[payment.id] = setTimeout(async () => {
           const revertedPayment = { ...payment, remarks: 'Unpaid' };
           try {
@@ -105,9 +101,8 @@ export const usePayments = (accountIdOverride = null) => {
             console.error('Error reverting payment:', error);
           }
           delete timeoutsRef.current[payment.id];
-        }, 15 * 24 * 60 * 60 * 1000); // 15 days in milliseconds
+        }, 15 * 24 * 60 * 60 * 1000); 
       } else {
-        // If marked as Unpaid manually, clear any existing timeout
         if (timeoutsRef.current[payment.id]) {
           clearTimeout(timeoutsRef.current[payment.id]);
           delete timeoutsRef.current[payment.id];

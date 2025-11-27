@@ -13,4 +13,4 @@ export const ProtectedRoute = ({ children }) => {
   return user ? children : <LoginPage />;
 };
 
-export default ProtectedRoute;  // Add default export
+export default ProtectedRoute; 

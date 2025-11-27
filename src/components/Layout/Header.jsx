@@ -11,9 +11,7 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
     setShowModal(!showModal);
   };
 
-  // Transform notifications to match the expected format
   const formattedNotifications = notifications.map(payment => {
-    // Calculate days remaining using same logic as Dashboard
     const today = new Date();
     const due = new Date(today.getFullYear(), today.getMonth(), payment.dueDate);
     if (due < today) due.setMonth(due.getMonth() + 1);
@@ -25,7 +23,7 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
       clientName: payment.accountName,
       projectName: payment.siteName,
       daysRemaining: daysRemaining,
-      originalPayment: payment // Keep original payment data
+      originalPayment: payment 
     };
   });
 
@@ -36,7 +34,7 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
     
     if (onNotificationClick) {
       onNotificationClick(notification.originalPayment);
-      setShowModal(false); // Close modal after clicking
+      setShowModal(false); 
     } else {
       console.error('onNotificationClick is not defined!');
     }

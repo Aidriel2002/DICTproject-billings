@@ -50,4 +50,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export default AuthProvider;  // Add default export
+export default AuthProvider;  

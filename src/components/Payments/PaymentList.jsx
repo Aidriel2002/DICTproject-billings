@@ -103,7 +103,7 @@ export const PaymentList = ({ payments, onEdit, onDelete, onUpdate }) => {
         >
           <option value="">All Statuses</option>
           <option value="paid">Paid</option>
-          <option value="due_soon">Due Soon (≤7 days)</option>
+          <option value="due_soon">Due Soon</option>
           <option value="on_track">On Track</option>
           <option value="overdue">Overdue</option>
         </select>
@@ -131,7 +131,6 @@ export const PaymentList = ({ payments, onEdit, onDelete, onUpdate }) => {
         </div>
       )}
 
-      {/* Only Edit Modal remains */}
       <EditPaymentModal
         open={isEditModalOpen}
         payment={selectedPayment}

@@ -5,7 +5,7 @@ export const styles = {
     fontFamily: 'Arial, sans-serif'
   },
   header: {
-    backgroundColor: '#1f2937',
+    backgroundColor: '#03310eff',
     color: 'white',
     padding: '20px',
     display: 'flex',

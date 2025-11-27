@@ -12,11 +12,8 @@ export const getStatusColor = (payment) => {
   
   const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
   
-  // Red for overdue
   if (daysUntilDue < 0) return '#ef4444';
-  // Orange for due within 7 days
   if (daysUntilDue <= 7) return '#fb923c';
-  // Green for paid or not due soon
   return '#4ade80';
 };
 

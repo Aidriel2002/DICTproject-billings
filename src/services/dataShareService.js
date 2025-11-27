@@ -9,9 +9,7 @@ const SHARED_FILES = {
   report: 'data_report.txt'
 };
 
-/**
- * Formats payment data for sharing
- */
+
 const formatPaymentsData = (payments) => {
   return payments.map(payment => ({
     'Site Name': payment.siteName,
@@ -26,9 +24,7 @@ const formatPaymentsData = (payments) => {
   }));
 };
 
-/**
- * Formats payment history data for sharing
- */
+
 const formatPaymentHistoryData = (paymentHistory) => {
   return paymentHistory.map(history => ({
     'Site Name': history.siteName,
@@ -43,9 +39,7 @@ const formatPaymentHistoryData = (paymentHistory) => {
   }));
 };
 
-/**
- * Converts data to CSV format
- */
+
 const convertToCSV = (data, headers) => {
   if (!data || data.length === 0) {
     return headers.join(',') + '\nNo data available';
@@ -55,7 +49,6 @@ const convertToCSV = (data, headers) => {
   const csvRows = data.map(row => 
     headers.map(header => {
       const value = row[header] || '';
-      // Escape commas and quotes in CSV
       if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
         return `"${value.replace(/"/g, '""')}"`;
       }
@@ -66,16 +59,12 @@ const convertToCSV = (data, headers) => {
   return [csvHeaders, ...csvRows].join('\n');
 };
 
-/**
- * Converts data to JSON format
- */
+
 const convertToJSON = (data) => {
   return JSON.stringify(data, null, 2);
 };
 
-/**
- * Creates a formatted text report
- */
+
 const createTextReport = (payments, paymentHistory) => {
   const paymentsData = formatPaymentsData(payments);
   const historyData = formatPaymentHistoryData(paymentHistory);
@@ -148,18 +137,13 @@ const generateShareUrls = async (shareId) => {
   return urls;
 };
 
-/**
- * Uploads files to Supabase Storage bucket and returns shareable URLs
- */
 const uploadToSupabaseStorage = async (recipientEmail, payments, paymentHistory) => {
   try {
     const shareId = `share_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Format the data
     const paymentsData = formatPaymentsData(payments);
     const historyData = formatPaymentHistoryData(paymentHistory);
     
-    // Create file contents
     const paymentsHeaders = paymentsData.length > 0 ? Object.keys(paymentsData[0]) : ['No Data'];
     const historyHeaders = historyData.length > 0 ? Object.keys(historyData[0]) : ['No Data'];
     const csvPayments = convertToCSV(paymentsData, paymentsHeaders);
@@ -176,14 +160,12 @@ const uploadToSupabaseStorage = async (recipientEmail, payments, paymentHistory)
     };
     const textReport = createTextReport(payments, paymentHistory);
     
-    // Create file paths
     const folderPath = `${shareId}`;
     const paymentsCsvPath = `${folderPath}/${SHARED_FILES.payments}`;
     const historyCsvPath = `${folderPath}/${SHARED_FILES.history}`;
     const jsonPath = `${folderPath}/${SHARED_FILES.json}`;
     const reportPath = `${folderPath}/${SHARED_FILES.report}`;
     
-    // Upload files to Supabase Storage
     const uploadFile = async (path, content, contentType) => {
       const blob = new Blob([content], { type: contentType });
       const { error } = await supabase.storage
@@ -196,7 +178,6 @@ const uploadToSupabaseStorage = async (recipientEmail, payments, paymentHistory)
       if (error) throw error;
     };
     
-    // Upload all files
     await uploadFile(paymentsCsvPath, csvPayments, 'text/csv');
     await uploadFile(historyCsvPath, csvHistory, 'text/csv');
     await uploadFile(jsonPath, JSON.stringify(jsonData, null, 2), 'application/json');
@@ -249,17 +230,13 @@ export const fetchSharedData = async (shareId) => {
   }
 };
 
-/**
- * Shares data via email using EmailJS or Supabase storage
- */
+
 export const shareDataByEmail = async (recipientEmail, payments, paymentHistory) => {
   try {
-    // Format the data
     const paymentsData = formatPaymentsData(payments);
     const historyData = formatPaymentHistoryData(paymentHistory);
     const textReport = createTextReport(payments, paymentHistory);
 
-    // Upload data to Supabase Storage bucket (if configured properly)
     let storageData = null;
     try {
       storageData = await uploadToSupabaseStorage(recipientEmail, payments, paymentHistory);
@@ -359,7 +336,6 @@ Complete Data Report:
 ${textReport}
 `;
 
-    // Try EmailJS first (if configured)
     try {
       const EMAILJS_SERVICE_ID = process.env.REACT_APP_EMAILJS_SERVICE_ID || '';
       const EMAILJS_TEMPLATE_ID = process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '';
@@ -391,7 +367,6 @@ ${textReport}
       console.log('EmailJS not available, falling back to Supabase Edge Function or mailto...', emailjsError);
 
       if (storageData?.urls) {
-        // Try Supabase Edge Function to send email
         try {
           const { error } = await supabase.functions.invoke('send-email', {
             body: {
@@ -409,7 +384,6 @@ ${textReport}
           console.log('Edge function not available, using mailto with links');
         }
 
-        // Mailto fallback with links
         const emailSubject = encodeURIComponent('Payment Tracker System - Shared Data Files');
         const emailBody = encodeURIComponent(textContent);
         window.location.href = `mailto:${recipientEmail}?subject=${emailSubject}&body=${emailBody}`;
@@ -421,7 +395,6 @@ ${textReport}
         };
       }
 
-      // If storage upload also failed, include everything in mailto
       const emailSubject = encodeURIComponent('Payment Tracker System - Data Export');
       const emailBody = encodeURIComponent(textContent);
       window.location.href = `mailto:${recipientEmail}?subject=${emailSubject}&body=${emailBody}`;
@@ -437,9 +410,6 @@ ${textReport}
   }
 };
 
-/**
- * Alternative: Download data as files (fallback option)
- */
 export const downloadDataAsFiles = (payments, paymentHistory) => {
   const paymentsData = formatPaymentsData(payments);
   const historyData = formatPaymentHistoryData(paymentHistory);
@@ -454,7 +424,6 @@ export const downloadDataAsFiles = (payments, paymentHistory) => {
     exportedAt: new Date().toISOString()
   };
   
-  // Create and download files
   const downloadFile = (content, filename, contentType) => {
     const blob = new Blob([content], { type: contentType });
     const url = URL.createObjectURL(blob);
