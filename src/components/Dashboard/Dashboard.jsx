@@ -63,6 +63,14 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
 
     const diff = Math.ceil((due - today) / 86400000);
     return diff <= 7 && diff >= 0;
+  }).sort((a, b) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dueA = new Date(today.getFullYear(), today.getMonth(), a.dueDate);
+    const dueB = new Date(today.getFullYear(), today.getMonth(), b.dueDate);
+    
+    return dueA - dueB;
   });
 
   const upcomingUnpaidBills = payments.filter(p => {
