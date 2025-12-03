@@ -21,21 +21,21 @@ export const PaymentList = ({ payments, onEdit, onDelete, onUpdate }) => {
   const [statusFilter, setStatusFilter] = useState('');
 
   const projectOptions = useMemo(
-    () => [...new Set(payments.map(p => p.siteName).filter(Boolean))],
+    () => [...new Set(payments.map(p => p.phase).filter(Boolean))],
     [payments]
   );
 
   const filteredPayments = useMemo(() => {
     return payments.filter(payment => {
       const matchesSearch = searchTerm
-        ? [payment.siteName, payment.accountName, payment.accountNumber]
+        ? [payment.siteName, payment.accountName, payment.accountNumber, payment.phase]
             .filter(Boolean)
             .some(value =>
               value.toLowerCase().includes(searchTerm.toLowerCase())
             )
         : true;
 
-      const matchesProject = projectFilter ? payment.siteName === projectFilter : true;
+      const matchesProject = projectFilter ? payment.phase === projectFilter : true;
       const matchesRemarks = remarksFilter ? payment.remarks === remarksFilter : true;
       const matchesStatus = statusFilter ? getStatusLabel(payment) === statusFilter : true;
 
