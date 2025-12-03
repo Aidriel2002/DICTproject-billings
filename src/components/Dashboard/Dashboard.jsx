@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getStatusColor } from '../../utils/statusHelper';
+import { getStatusColor, getDaysOverdue, isCoveredByAdvancePayment } from '../../utils/statusHelper';
 import { PayBillModal } from '../Payments/PayBillModal';
 import { styles } from '../../styles/dashboardStyles';
 
@@ -15,16 +15,20 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
   const handleConfirmPayment = async (updatedPayment) => {
     await onUpdate(updatedPayment);
 
-    if (updatedPayment.remarks === "Paid" && typeof onAddHistory === "function") {
+    if ((updatedPayment.remarks === "Paid" || updatedPayment.remarks?.startsWith("Paid until")) && typeof onAddHistory === "function") {
       await onAddHistory({
         paymentId: updatedPayment.id,
         siteName: updatedPayment.siteName,
         accountName: updatedPayment.accountName,
         accountNumber: updatedPayment.accountNumber,
         amountPaid: updatedPayment.paidAmount,
+        totalPaid: updatedPayment.totalPaid,
         installationFee: updatedPayment.installationFee,
         referenceNumber: updatedPayment.referenceNumber,
         paymentDate: updatedPayment.paymentDate,
+        isAdvancePayment: updatedPayment.isAdvancePayment,
+        advanceMonths: updatedPayment.advanceMonths,
+        paidUntil: updatedPayment.paidUntil
       });
     }
 
@@ -32,25 +36,51 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
     setSelectedPayment(null);
   };
 
-  const dueLessThan7Days = payments.filter(p => {
+  const overduePayments = payments.filter(p => {
+    if (isCoveredByAdvancePayment(p)) return false;
+    
+    if (p.remarks === 'Paid') return false;
+    
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dueDate = new Date(today.getFullYear(), today.getMonth(), p.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    return today > dueDate;
+  });
+
+  const dueLessThan7Days = payments.filter(p => {
+    if (isCoveredByAdvancePayment(p)) return false;
+    
+    if (p.remarks === 'Paid') return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const due = new Date(today.getFullYear(), today.getMonth(), p.dueDate);
-    if (due < today) due.setMonth(due.getMonth() + 1);
+    due.setHours(0, 0, 0, 0);
 
     const diff = Math.ceil((due - today) / 86400000);
-    return diff <= 7 && diff >= 0 && p.remarks === 'Unpaid';
+    return diff <= 7 && diff >= 0;
   });
 
   const upcomingUnpaidBills = payments.filter(p => {
+    if (isCoveredByAdvancePayment(p)) return false;
+    
+    if (p.remarks === 'Paid') return false;
+
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const due = new Date(today.getFullYear(), today.getMonth(), p.dueDate);
-    if (due < today) due.setMonth(due.getMonth() + 1);
+    due.setHours(0, 0, 0, 0);
 
     const diff = Math.ceil((due - today) / 86400000);
-    return p.remarks === 'Unpaid' && diff > 7;
+    return diff > 7;
   });
 
-  const renderPaymentTable = (paymentList, showDaysLeft = false) => (
+  const renderPaymentTable = (paymentList, showDaysColumn = false, columnLabel = "Days Left") => (
     <div style={styles.tableContainer}>
       <table style={styles.table}>
         <thead>
@@ -61,7 +91,7 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
             <th style={styles.th}>Account Number</th>
             <th style={styles.th}>Due Date</th>
             <th style={styles.th}>Monthly Payment</th>
-            {showDaysLeft && <th style={styles.th}>Days Left</th>}
+            {showDaysColumn && <th style={styles.th}>{columnLabel}</th>}
             <th style={styles.th}>Actions</th>
           </tr>
         </thead>
@@ -69,9 +99,13 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
         <tbody>
           {paymentList.map(payment => {
             const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
             const due = new Date(today.getFullYear(), today.getMonth(), payment.dueDate);
-            if (due < today) due.setMonth(due.getMonth() + 1);
+            due.setHours(0, 0, 0, 0);
+            
             const days = Math.ceil((due - today) / 86400000);
+            const daysOverdue = getDaysOverdue(payment);
 
             return (
               <tr key={payment.id} style={styles.tableRow}>
@@ -83,7 +117,11 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
                 <td style={styles.td}>{payment.accountNumber}</td>
                 <td style={styles.td}>Day {payment.dueDate}</td>
                 <td style={styles.td}>₱{payment.monthlyPayment.toLocaleString()}</td>
-                {showDaysLeft && <td style={styles.td}>{days} days</td>}
+                {showDaysColumn && (
+                  <td style={styles.td}>
+                    {daysOverdue > 0 ? `${daysOverdue} days` : `${days} days`}
+                  </td>
+                )}
 
                 <td style={styles.td}>
                   <button 
@@ -103,12 +141,21 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
 
   return (
     <div style={styles.dashboard}>
-      <h2 style={styles.dashboardTitle}>Due Less Than 7 Days</h2>
+      {overduePayments.length > 0 && (
+        <>
+          <h2 style={{ ...styles.dashboardTitle, color: '#ef4444' }}>Overdue Payments</h2>
+          {renderPaymentTable(overduePayments, true, "Days Overdue")}
+        </>
+      )}
+
+      <h2 style={{ ...styles.dashboardTitle, marginTop: overduePayments.length > 0 ? '40px' : '0' }}>
+        Due Less Than 7 Days
+      </h2>
 
       {dueLessThan7Days.length === 0 ? (
         <p style={styles.noData}>No payments due within the next 7 days</p>
       ) : (
-        renderPaymentTable(dueLessThan7Days, true)
+        renderPaymentTable(dueLessThan7Days, true, "Days Left")
       )}
 
       <h2 style={{ ...styles.dashboardTitle, marginTop: '40px' }}>Upcoming Unpaid Bills</h2>

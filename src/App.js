@@ -16,7 +16,7 @@ import { usePaymentHistory } from './hooks/usePaymentHistory';
 import { useAccessControl } from './hooks/useAccessControl';
 import { useActivityLogs } from './hooks/useActivityLogs';
 import { useAuth } from './hooks/useAuth';
-import { getUpcomingPayments } from './utils/statusHelper';
+import { isCoveredByAdvancePayment } from './utils/statusHelper';
 import { styles } from './styles/styles';
 import { styles as paymentStyles } from './styles/paymentStyles';
 import { PayBillModal } from './components/Payments/PayBillModal';
@@ -54,7 +54,26 @@ const MainApp = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showNotifications, setShowNotifications] = useState(true);
 
-  const upcomingPayments = getUpcomingPayments(payments);
+  // Get all notification-worthy payments (overdue + due within 7 days)
+  const notificationPayments = useMemo(() => {
+    return payments.filter(p => {
+      // Skip if covered by advance payment
+      if (isCoveredByAdvancePayment(p)) return false;
+      // Skip if paid
+      if (p.remarks === 'Paid') return false;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), p.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      const daysUntilDue = Math.ceil((dueDate - today) / 86400000);
+      
+      // Include if overdue OR due within 7 days
+      return today > dueDate || (daysUntilDue <= 7 && daysUntilDue >= 0);
+    });
+  }, [payments]);
 
   const handleAdd = async (payment) => {
     if (editingPayment) {
@@ -155,13 +174,13 @@ const MainApp = () => {
     }
   };
 
-   const [selectedPaymentForBill, setSelectedPaymentForBill] = useState(null);
+  const [selectedPaymentForBill, setSelectedPaymentForBill] = useState(null);
   const [showPayBillModal, setShowPayBillModal] = useState(false);
 
   const handleNotificationClick = (payment) => {
-  setSelectedPaymentForBill(payment);
-  setShowPayBillModal(true);
-};
+    setSelectedPaymentForBill(payment);
+    setShowPayBillModal(true);
+  };
 
   const handleClosePayBillModal = () => {
     setShowPayBillModal(false);
@@ -172,14 +191,14 @@ const MainApp = () => {
     <div style={styles.container}>
 
       <Header 
-        notifications={upcomingPayments} 
+        notifications={notificationPayments} 
         onNotificationClick={handleNotificationClick}
       />
 
-      {showNotifications && upcomingPayments.length > 0 && (
+      {showNotifications && notificationPayments.length > 0 && (
         <div style={styles.notificationWrapper}>
           <NotificationBar 
-            notifications={upcomingPayments} 
+            notifications={notificationPayments} 
             onClose={() => setShowNotifications(false)} 
           />
         </div>
@@ -199,101 +218,106 @@ const MainApp = () => {
           </div>
         )}
 
-  {activeTab === 'dashboard' && (
-    <Dashboard 
-      payments={payments}
-      onUpdate={updatePayment}
-      onAddHistory={addHistory}
-    />
-  )}
-  
-  {activeTab === 'payments' && (
-    <>
-      <div style={paymentStyles.actionBar}>
-        <button
-          onClick={() => setShowForm(true)}
-          style={{
-            ...paymentStyles.addButton,
-            ...(activeAccount?.id !== user?.id ? paymentStyles.addButtonDisabled : {})
-          }}
-          disabled={activeAccount?.id !== user?.id}
-        >
-          + Add Payment
-        </button>
-      </div>
+        {activeTab === 'dashboard' && (
+          <Dashboard 
+            payments={payments}
+            onUpdate={updatePayment}
+            onAddHistory={addHistory}
+          />
+        )}
+        
+        {activeTab === 'payments' && (
+          <>
+            <div style={paymentStyles.actionBar}>
+              <button
+                onClick={() => setShowForm(true)}
+                style={{
+                  ...paymentStyles.addButton,
+                  ...(activeAccount?.id !== user?.id ? paymentStyles.addButtonDisabled : {})
+                }}
+                disabled={activeAccount?.id !== user?.id}
+              >
+                + Add Payment
+              </button>
+            </div>
 
-      {showForm && (
-        <PaymentForm
-          onAdd={handleAdd}
-          onCancel={handleCancel}
-          editData={editingPayment}
+            {showForm && (
+              <PaymentForm
+                onAdd={handleAdd}
+                onCancel={handleCancel}
+                editData={editingPayment}
+              />
+            )}
+
+            <PaymentList
+              payments={payments}
+              onEdit={handleEdit}
+              onDelete={deletePayment}
+              onUpdate={updatePayment} 
+              onAddHistory={addHistory}
+            />
+          </>
+        )}
+
+        {activeTab === 'history' && (
+          <PaymentHistoryList
+            history={paymentHistory}
+            onEdit={handleEditHistory}
+            onDelete={deleteHistory}
+          />
+        )}
+
+        {activeTab === 'access' && (
+          <AccessManager
+            grantedAccesses={grantedAccesses}
+            onAddAccess={grantAccess}
+            onRemoveAccess={revokeAccess}
+            loading={loadingAccess}
+            isOwner
+            currentEmail={user?.email}
+          />
+        )}
+
+        {activeTab === 'activity' && (
+          <ActivityLogList logs={activityLogs} loading={loadingLogs} />
+        )}
+   
+      </main>
+
+      {showPayBillModal && selectedPaymentForBill && (
+        <PayBillModal
+          open={showPayBillModal}
+          payment={selectedPaymentForBill}
+          onClose={handleClosePayBillModal}
+          onUpdate={async (updatedPayment) => {
+            try {
+              await updatePayment(updatedPayment);
+              
+              if (updatedPayment.remarks === "Paid" || updatedPayment.remarks?.startsWith("Paid until")) {
+                await addHistory({
+                  paymentId: selectedPaymentForBill.id,
+                  siteName: updatedPayment.siteName,
+                  accountName: updatedPayment.accountName,
+                  accountNumber: updatedPayment.accountNumber,
+                  amountPaid: updatedPayment.paidAmount,
+                  totalPaid: updatedPayment.totalPaid,
+                  installationFee: updatedPayment.installationFee || 0,
+                  referenceNumber: updatedPayment.referenceNumber,
+                  paymentDate: updatedPayment.paymentDate,
+                  isAdvancePayment: updatedPayment.isAdvancePayment,
+                  advanceMonths: updatedPayment.advanceMonths,
+                  paidUntil: updatedPayment.paidUntil
+                });
+              }
+              
+              handleClosePayBillModal();
+            } catch (error) {
+              console.error('Error in onUpdate:', error);
+              alert('Error updating payment: ' + error.message);
+            }
+          }}
         />
       )}
-
-      <PaymentList
-        payments={payments}
-        onEdit={handleEdit}
-        onDelete={deletePayment}
-        onUpdate={updatePayment} 
-        onAddHistory={addHistory}
-      />
-    </>
-  )}
-
-  {activeTab === 'history' && (
-    <PaymentHistoryList
-      history={paymentHistory}
-      onEdit={handleEditHistory}
-      onDelete={deleteHistory}
-    />
-  )}
-
-  {activeTab === 'access' && (
-    <AccessManager
-      grantedAccesses={grantedAccesses}
-      onAddAccess={grantAccess}
-      onRemoveAccess={revokeAccess}
-      loading={loadingAccess}
-      isOwner
-      currentEmail={user?.email}
-    />
-  )}
-
-  {activeTab === 'activity' && (
-    <ActivityLogList logs={activityLogs} loading={loadingLogs} />
-  )}
-   
-</main>
-{showPayBillModal && selectedPaymentForBill && (
-  <PayBillModal
-    open={showPayBillModal}
-    payment={selectedPaymentForBill}
-    onClose={handleClosePayBillModal}
-    onUpdate={async (updatedPayment) => {
-      try {
-        await updatePayment(updatedPayment);
-        
-        if (updatedPayment.remarks === "Paid") {
-          await addHistory({
-            paymentId: selectedPaymentForBill.id,
-            siteName: updatedPayment.siteName,
-            accountName: updatedPayment.accountName,
-            accountNumber: updatedPayment.accountNumber,
-            amountPaid: updatedPayment.paidAmount,
-            installationFee: updatedPayment.installationFee || 0,
-            referenceNumber: updatedPayment.referenceNumber,
-            paymentDate: updatedPayment.paymentDate,
-          });
-        }
-        
-        handleClosePayBillModal();
-      } catch (error) {
-        console.error('Error in onUpdate:', error);
-        alert('Error updating payment: ' + error.message);
-      }
-    }}
-  />
-)}
 
     </div>
   );

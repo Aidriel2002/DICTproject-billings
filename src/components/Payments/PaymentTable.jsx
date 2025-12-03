@@ -19,6 +19,7 @@ export const PaymentTable = ({
 
       <div style={styles.tableContainer}>
         <table style={styles.table}>
+          
           <thead>
             <tr style={styles.tableHeader}>
               <th style={styles.th}>Status</th>

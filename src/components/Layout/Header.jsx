@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { getDaysOverdue, isCoveredByAdvancePayment } from '../../utils/statusHelper';
 import { styles } from '../../styles/styles';
 
 export const Header = ({ notifications = [], onNotificationClick }) => {
@@ -11,38 +12,70 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
     setShowModal(!showModal);
   };
 
-  const formattedNotifications = notifications.map(payment => {
-    const today = new Date();
-    const due = new Date(today.getFullYear(), today.getMonth(), payment.dueDate);
-    if (due < today) due.setMonth(due.getMonth() + 1);
-    const daysRemaining = Math.ceil((due - today) / 86400000);
-    
-    return {
-      dueDate: `Day ${payment.dueDate}`,
-      amount: payment.monthlyPayment,
-      clientName: payment.accountName,
-      projectName: payment.siteName,
-      daysRemaining: daysRemaining,
-      originalPayment: payment 
-    };
-  });
+  const processedNotifications = notifications
+    .filter(payment => {
+      if (isCoveredByAdvancePayment(payment)) return false;
+      if (payment.remarks === 'Paid') return false;
+      return true;
+    })
+    .map(payment => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), payment.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      const daysRemaining = Math.ceil((dueDate - today) / 86400000);
+      const daysOverdue = getDaysOverdue(payment);
+      const isOverdue = today > dueDate;
+      
+      return {
+        dueDate: `Day ${payment.dueDate}`,
+        amount: payment.monthlyPayment,
+        clientName: payment.accountName,
+        projectName: payment.siteName,
+        daysRemaining: isOverdue ? daysOverdue : daysRemaining,
+        isOverdue: isOverdue,
+        originalPayment: payment,
+        sortPriority: isOverdue ? -daysOverdue : daysRemaining 
+      };
+    })
+    .sort((a, b) => a.sortPriority - b.sortPriority); 
+
+  const overdueCount = processedNotifications.filter(n => n.isOverdue).length;
+  const dueSoonCount = processedNotifications.filter(n => !n.isOverdue).length;
 
   const handleNotificationClick = (notification) => {
-    console.log('Notification clicked in Header:', notification);
-    console.log('Original payment:', notification.originalPayment);
-    console.log('onNotificationClick function exists:', !!onNotificationClick);
-    
     if (onNotificationClick) {
       onNotificationClick(notification.originalPayment);
       setShowModal(false); 
-    } else {
-      console.error('onNotificationClick is not defined!');
     }
   };
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
       setShowModal(false);
+    }
+  };
+
+  const getNotificationStyle = (notification, isHovered) => {
+    const baseStyle = {
+      ...styles.notificationItem,
+      ...(isHovered ? styles.notificationItemHover : {})
+    };
+
+    if (notification.isOverdue) {
+      return {
+        ...baseStyle,
+        borderLeft: '4px solid #ef4444',
+        backgroundColor: isHovered ? '#ecebeaff' : '#ffffffff'
+      };
+    } else {
+      return {
+        ...baseStyle,
+        borderLeft: '4px solid #fb923c',
+        backgroundColor: isHovered ? '#ecebeaff' : '#ffffffff'
+      };
     }
   };
 
@@ -54,9 +87,9 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
           <div style={styles.notificationBellContainer}>
             <button onClick={toggleModal} style={styles.notificationBell}>
               🔔
-              {formattedNotifications.length > 0 && (
+              {processedNotifications.length > 0 && (
                 <span style={styles.notificationBadge}>
-                  {formattedNotifications.length}
+                  {processedNotifications.length}
                 </span>
               )}
             </button>
@@ -80,36 +113,93 @@ export const Header = ({ notifications = [], onNotificationClick }) => {
                 ×
               </button>
             </div>
+            
+            {processedNotifications.length > 0 && (
+              <div style={{
+                padding: '12px 20px',
+                borderBottom: '1px solid #e5e7eb',
+                display: 'flex',
+                gap: '20px',
+                fontSize: '14px'
+              }}>
+                {overdueCount > 0 && (
+                  <div style={{ color: '#ef4444', fontWeight: '600' }}>
+                    🔴 {overdueCount} Overdue
+                  </div>
+                )}
+                {dueSoonCount > 0 && (
+                  <div style={{ color: '#fb923c', fontWeight: '600' }}>
+                    🟠 {dueSoonCount} Due Soon
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={styles.notificationList}>
-              {formattedNotifications.length > 0 ? (
-                formattedNotifications.map((notification, index) => (
+              {processedNotifications.length > 0 ? (
+                processedNotifications.map((notification, index) => (
                   <div
                     key={index}
-                    style={{
-                      ...styles.notificationItem,
-                      ...(hoveredItem === index ? styles.notificationItemHover : {})
-                    }}
+                    style={getNotificationStyle(notification, hoveredItem === index)}
                     onMouseEnter={() => setHoveredItem(index)}
                     onMouseLeave={() => setHoveredItem(null)}
                     onClick={() => handleNotificationClick(notification)}
                   >
-                    <div style={styles.notificationDate}>
-                      Due: {notification.dueDate || 'N/A'}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '8px'
+                    }}>
+                      <div style={styles.notificationDate}>
+                        Due: {notification.dueDate}
+                      </div>
+                      {notification.isOverdue ? (
+                        <div style={{
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}>
+                          OVERDUE
+                        </div>
+                      ) : (
+                        <div style={{
+                          backgroundColor: '#fb923c',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '600'
+                        }}>
+                          DUE SOON
+                        </div>
+                      )}
                     </div>
                     <div style={styles.notificationAmount}>
-                      Amount: ₱ {notification.amount?.toFixed(2) || '0.00'}
+                      Amount: ₱{notification.amount?.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div style={styles.notificationDetails}>
-                      {notification.projectName || 'Client'} - {notification.clientName || 'Project'}
+                      {notification.projectName} - {notification.clientName}
                     </div>
-                    <div style={styles.notificationDetails}>
-                      Days remaining: {notification.daysRemaining || 0}
+                    <div style={{
+                      ...styles.notificationDetails,
+                      color: notification.isOverdue ? '#dc2626' : '#ea580c',
+                      fontWeight: '600',
+                      marginTop: '4px'
+                    }}>
+                      {notification.isOverdue 
+                        ? `${notification.daysRemaining} day${notification.daysRemaining !== 1 ? 's' : ''} overdue`
+                        : `${notification.daysRemaining} day${notification.daysRemaining !== 1 ? 's' : ''} remaining`
+                      }
                     </div>
                   </div>
                 ))
               ) : (
                 <div style={styles.emptyState}>
-                  <p>No upcoming payments within 7 days</p>
+                  <p>No upcoming payments or overdue bills</p>
                 </div>
               )}
             </div>

@@ -46,10 +46,14 @@ export const addPaymentHistory = async (history, userId) => {
     account_name: history.accountName,
     account_number: history.accountNumber,
     amount_paid: history.amountPaid || history.paidAmount || 0,
+    total_paid: history.totalPaid || history.amountPaid || 0,
     installation_fee: history.installationFee || 0,
     payment_date: history.paymentDate || history.payment_date || new Date().toISOString(),
     reference_number: history.referenceNumber,
-    notes: history.notes
+    notes: history.notes,
+    is_advance_payment: history.isAdvancePayment || false,
+    advance_months: history.advanceMonths || 1,
+    paid_until: history.paidUntil || null
   };
   
   const { error } = await supabase
@@ -69,10 +73,14 @@ export const addPaymentHistory = async (history, userId) => {
     accountName: newHistory.account_name,
     accountNumber: newHistory.account_number,
     amountPaid: newHistory.amount_paid,
+    totalPaid: newHistory.total_paid,
     installationFee: newHistory.installation_fee,
     paymentDate: newHistory.payment_date,
     referenceNumber: newHistory.reference_number,
-    notes: newHistory.notes
+    notes: newHistory.notes,
+    isAdvancePayment: newHistory.is_advance_payment,
+    advanceMonths: newHistory.advance_months,
+    paidUntil: newHistory.paid_until
   };
 };
 
