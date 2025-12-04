@@ -6,9 +6,6 @@ import { styles } from '../../styles/dashboardStyles';
 export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [isPayModalOpen, setPayModalOpen] = useState(false);
-  const [isWeeklySummaryOpen, setWeeklySummaryOpen] = useState(false);
-
-  // NEW STATE
   const [isPhaseSummaryOpen, setPhaseSummaryOpen] = useState(false);
 
   const openPayBill = (payment) => {
@@ -77,47 +74,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
     return Math.ceil((due - today) / 86400000) > 7;
   });
 
-  // ORIGINAL WEEK SUMMARY
-  const calculateWeeklySummary = () => {
-    const weeks = [
-      { label: 'Week 1', start: 1, end: 7, bills: [], total: 0 },
-      { label: 'Week 2', start: 8, end: 14, bills: [], total: 0 },
-      { label: 'Week 3', start: 15, end: 21, bills: [], total: 0 },
-      { label: 'Week 4', start: 22, end: 31, bills: [], total: 0 }
-    ];
-
-    const unpaidBills = payments.filter(p => {
-      if (isCoveredByAdvancePayment(p)) return false;
-      if (p.remarks === 'Paid') return false;
-      return true;
-    }).sort((a, b) => a.dueDate - b.dueDate);
-
-    const processed = new Set();
-
-    weeks.forEach(week => {
-      unpaidBills.forEach(b => {
-        if (processed.has(b.id)) return;
-        if (b.dueDate >= week.start && b.dueDate <= week.end) {
-          week.bills.push(b);
-          week.total += b.monthlyPayment;
-          processed.add(b.id);
-        }
-      });
-
-      unpaidBills.forEach(b => {
-        if (!processed.has(b.id) && b.dueDate < week.start) {
-          week.bills.push(b);
-          week.total += b.monthlyPayment;
-        }
-      });
-
-      week.bills.sort((a, b) => a.dueDate - b.dueDate);
-    });
-
-    return weeks;
-  };
-
-  // ⭐ NEW: WEEKLY SUMMARY BY PHASE
   const calculatePhaseWeeklySummary = () => {
     const baseWeeks = [
       { label: 'Week 1', start: 1, end: 7 },
@@ -134,7 +90,7 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
 
     const phaseWeeks = baseWeeks.map(week => ({
       ...week,
-      phases: {}, // phase groups
+      phases: {},
       totalAllPhases: 0
     }));
 
@@ -165,51 +121,210 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
       <head>
         <title>${week.label} - Weekly Phase Summary - ${monthYear}</title>
         <style>
-          body { font-family: Arial; padding: 20px; color: #1e293b; }
-          h1 { border-bottom: 3px solid #e2e8f0; padding-bottom: 10px; }
-          h2 { margin-top: 20px; color:#334155; }
-          table { width:100%; border-collapse:collapse; margin-top:10px; }
-          th { background:#334155; color:white; padding:8px; text-align:left; }
-          td { border-bottom: 1px solid #e2e8f0; padding:6px; }
-          .amount { text-align:right; }
+          @page { 
+            margin: 80px 0 40px 0;
+            size: auto;
+          }
+          * { 
+            margin: 0px; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 0 40px;
+            color: #1e293b;
+            background: white;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #10b981;
+          }
+          .header .logo {
+            margin: 0;
+            width: 390px;
+            height: auto;
+          }
+          .header h1 {
+            font-size: 24px;
+            color: #0f172a;
+            margin-bottom: 8px;
+          }
+          .header .subtitle {
+            font-size: 16px;
+            color: #64748b;
+          }
+          .summary-box {
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            text-align: right;
+          }
+          .summary-box .total {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0f172a;
+          }
+          .phase-section {
+            margin: 40px 0;
+            page-break-inside: avoid;
+          }
+          .phase-header {
+            background: #f8fafc;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+          }
+          .phase-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #334155;
+          }
+          .phase-total {
+            color: #10b981;
+            font-weight: 600;
+            text-align: right;
+            margin-right: 10px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          th {
+            background: #334155;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+          }
+          td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+          }
+          tr:nth-child(even) {
+            background-color: #f8fafc;
+          }
+          .amount {
+            text-align: right;
+            font-weight: 500;
+          }
+          .no-bills {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-style: italic;
+          }
+          .print-header {
+            display: none;
+          }
+          @media print {
+            body { padding: 30px; }
+            @page {
+              margin-top: 80px;
+            }
+            @page:first {
+              margin-top: 40px;
+            }
+            .print-header {
+              display: block;
+              position: running(header);
+              text-align: center;
+              padding: 15px 0;
+              border-bottom: 2px solid #10b981;
+            }
+            .print-header h1 {
+              font-size: 18px;
+              color: #0f172a;
+              margin: 0;
+            }
+            .print-header .subtitle {
+              font-size: 13px;
+              color: #64748b;
+              margin-top: 4px;
+            }
+            @supports not (position: running(header)) {
+              .print-header {
+                display: none;
+              }
+              .header ~ .print-header-fallback {
+                display: block;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 15px 40px;
+                border-bottom: 2px solid #10b981;
+                z-index: 1000;
+                text-align: center;
+              }
+            }
+            thead { display: table-header-group; }
+            .phase-section { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
-
-        <h1>${week.label} - Phase Breakdown</h1>
-        <p><b>Period:</b> Day ${week.start} - Day ${week.end} <br>
-        <b>Total (All Phases):</b> ₱${week.totalAllPhases.toLocaleString()}</p>
+        <div class="print-header">
+          <h1>${week.label} - Phase Breakdown</h1>
+          <div class="subtitle">${monthYear} • Day ${week.start} - Day ${week.end}</div>
+        </div>
+        <div class="header">
+          <img src="/logo.png" alt="Logo" class="logo" />
+          <h1>${week.label} - Phase Breakdown</h1>
+          <div class="subtitle">${monthYear} • Day ${week.start} - Day ${week.end}</div>
+        </div>
+        
 
         ${Object.keys(week.phases).length === 0 ? `
-          <p>No bills for this week</p>
+          <div class="no-bills">No bills for this week</div>
         ` : `
           ${Object.values(week.phases).map(ph => `
-            <h2> ${ph.phase} — Total: ₱${ph.total.toLocaleString()}</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Site</th><th>Account</th><th>Number</th><th>Due</th><th class="amount">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${ph.bills.map(b => `
+            <div class="phase-section">
+              <div class="phase-header">
+                <span class="phase-title">${ph.phase}</span>
+                
+              </div>
+              <table>
+                <thead>
                   <tr>
-                    <td>${b.siteName}</td>
-                    <td>${b.accountName}</td>
-                    <td>${b.accountNumber}</td>
-                    <td>Day ${b.dueDate}</td>
-                    <td class="amount">₱${b.monthlyPayment.toLocaleString()}</td>
+                    <th>Site</th>
+                    <th>Account</th>
+                    <th>Account Number</th>
+                    <th>Due Date</th>
+                    <th class="amount">Amount</th>
                   </tr>
-                `).join("")}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${ph.bills.map(b => `
+                    <tr>
+                      <td>${b.siteName}</td>
+                      <td>${b.accountName}</td>
+                      <td>${b.accountNumber}</td>
+                      <td>Day ${b.dueDate}</td>
+                      <td class="amount">₱${b.monthlyPayment.toLocaleString()}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+                
+              </table>
+              <div class="phase-total">₱${ph.total.toLocaleString()}</div>
+            </div>
+            
           `).join("")}
         `}
-
-        <p style="margin-top:20px;font-size:12px;color:#64748b;">
-          Printed on: ${new Date().toLocaleString()}
-        </p>
-
+        <div class="summary-box">
+          <div class="total">Total (All Phases): ₱${week.totalAllPhases.toLocaleString()}</div>
+        </div>
       </body>
       </html>
     `);
@@ -218,132 +333,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
     setTimeout(() => printWindow.print(), 250);
   };
 
-    const printWeek = (week) => {
-    const printWindow = window.open('', '', 'width=800,height=600');
-    const today = new Date();
-    const monthYear = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${week.label} Bill Summary - ${monthYear}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              color: #1e293b;
-            }
-            h1 {
-              color: #334155;
-              border-bottom: 3px solid #e2e8f0;
-              padding-bottom: 10px;
-            }
-            h2 {
-              color: #475569;
-              margin-top: 20px;
-            }
-            .summary-info {
-              background-color: #f8fafc;
-              padding: 15px;
-              border-radius: 8px;
-              margin: 20px 0;
-            }
-            .total {
-              font-size: 24px;
-              font-weight: bold;
-              color: #ef4444;
-              margin: 10px 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th {
-              background-color: #334155;
-              color: white;
-              padding: 12px;
-              text-align: left;
-              font-weight: 600;
-            }
-            td {
-              padding: 10px 12px;
-              border-bottom: 1px solid #e2e8f0;
-            }
-            tr:nth-child(even) {
-              background-color: #f8fafc;
-            }
-            .amount {
-              text-align: right;
-              font-weight: 500;
-            }
-            .footer {
-              margin-top: 30px;
-              padding-top: 20px;
-              border-top: 2px solid #e2e8f0;
-              font-size: 12px;
-              color: #64748b;
-            }
-            @media print {
-              body {
-                padding: 0;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${week.label} Bill Summary</h1>
-          <div class="summary-info">
-            <strong>Period:</strong> Day ${week.start} - Day ${week.end}<br>
-            <strong>Month:</strong> ${monthYear}<br>
-            <div class="total">Total Amount: ₱${week.total.toLocaleString()}</div>
-          </div>
-          
-          ${week.bills.length > 0 ? `
-            <h2>Bills (${week.bills.length})</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Site Name</th>
-                  <th>Account Name</th>
-                  <th>Account Number</th>
-                  <th>Due Date</th>
-                  <th style="text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${week.bills.map(bill => `
-                  <tr>
-                    <td>${bill.siteName}</td>
-                    <td>${bill.accountName}</td>
-                    <td>${bill.accountNumber}</td>
-                    <td>Day ${bill.dueDate}</td>
-                    <td class="amount">₱${bill.monthlyPayment.toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : `
-            <p style="color: #94a3b8; font-style: italic;">No bills for this week</p>
-          `}
-          
-          <div class="footer">
-            Printed on: ${new Date().toLocaleString()}
-          </div>
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
-  };
-
-
-  // ---------------------------- UI TABLE FUNCTION ----------------------------
   const renderPaymentTable = (paymentList, showDaysColumn = false, columnLabel = "Days Left") => (
     <div style={styles.tableContainer}>
       <table style={styles.table}>
@@ -359,7 +348,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
             <th style={styles.th}>Actions</th>
           </tr>
         </thead>
-
         <tbody>
           {paymentList.map(payment => {
             const today = new Date();
@@ -386,7 +374,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
                     {daysOverdue > 0 ? `${daysOverdue} days` : `${days} days`}
                   </td>
                 )}
-
                 <td style={styles.td}>
                   <button 
                     onClick={() => openPayBill(payment)}
@@ -403,28 +390,16 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
     </div>
   );
 
-
   return (
     <div style={styles.dashboard}>
-      <div style={{ display: 'flex' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <button 
-          onClick={() => setWeeklySummaryOpen(true)}
-          style={{ ...styles.payBillButton, padding: '10px 20px', fontSize: '16px', marginRight: '20px' }}
-        >
-          View Weekly Bill Summary
-        </button>
-      </div>
-
       <div style={{ marginBottom: '20px' }}>
         <button 
           onClick={() => setPhaseSummaryOpen(true)}
           style={{ ...styles.payBillButton, padding: '10px 20px', fontSize: '16px', background:'#10b981' }}
         >
-          View Weekly Summary by Phase
+          Weekly Summary
         </button>
       </div>
-</div>
 
       {overduePayments.length > 0 && (
         <>
@@ -436,7 +411,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
       <h2 style={{ ...styles.dashboardTitle, marginTop: overduePayments.length > 0 ? '40px' : '0' }}>
         Due Less Than 7 Days
       </h2>
-
       {dueLessThan7Days.length === 0 ? (
         <p style={styles.noData}>No payments due within the next 7 days</p>
       ) : (
@@ -444,14 +418,12 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
       )}
 
       <h2 style={{ ...styles.dashboardTitle, marginTop: '40px' }}>Upcoming Unpaid Bills</h2>
-
       {upcomingUnpaidBills.length === 0 ? (
         <p style={styles.noData}>No upcoming unpaid bills</p>
       ) : (
         renderPaymentTable(upcomingUnpaidBills, false)
       )}
 
-      {/* PAY MODAL */}
       <PayBillModal
         open={isPayModalOpen}
         payment={selectedPayment}
@@ -462,137 +434,9 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
         onUpdate={handleConfirmPayment}
       />
 
-      {/* ORIGINAL WEEK SUMMARY MODAL */}
-      {isWeeklySummaryOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
-          justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white', borderRadius: '8px',
-            padding: '30px', maxWidth: '900px', width: '90%',
-            maxHeight: '80vh', overflow: 'auto',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-          }}>
-
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', marginBottom: '20px'
-            }}>
-              <h2 style={{ margin: 0, fontSize: '24px', color: '#1e293b' }}>
-                Weekly Bill Summary
-              </h2>
-
-              <button 
-                onClick={() => setWeeklySummaryOpen(false)}
-                style={{ background:'none', border:'none', fontSize:'24px',
-                         cursor:'pointer', color:'#64748b' }}
-              >
-                ×
-              </button>
-            </div>
-
-            {calculateWeeklySummary().map(week => (
-              <div key={week.label} style={{
-                marginBottom:'30px', border:'1px solid #e2e8f0',
-                borderRadius:'8px', padding:'20px'
-              }}>
-                <div style={{
-                  display:'flex', justifyContent:'space-between',
-                  alignItems:'center', marginBottom:'15px',
-                  paddingBottom:'10px', borderBottom:'2px solid #e2e8f0'
-                }}>
-                  <h3 style={{ margin:0, fontSize:'18px', color:'#334155' }}>
-                    {week.label} (Day {week.start}-{week.end})
-                  </h3>
-
-                  <div style={{ display:'flex', alignItems:'center', gap:'15px' }}>
-                    <div style={{
-                      fontSize:'20px', fontWeight:'bold',
-                      color: week.total > 0 ? '#ef4444' : '#10b981'
-                    }}>
-                      Total: ₱{week.total.toLocaleString()}
-                    </div>
-                    <button 
-                      onClick={() => printWeek(week)}
-                      style={{
-                        backgroundColor:'#3b82f6', color:'white',
-                        border:'none', borderRadius:'6px',
-                        padding:'8px 16px', cursor:'pointer',
-                        fontSize:'14px', fontWeight:'500'
-                      }}
-                    >
-                      🖨️ Print
-                    </button>
-                  </div>
-                </div>
-
-                {week.bills.length > 0 ? (
-                  <div style={{ fontSize:'14px' }}>
-                    {week.bills.map(bill => (
-                      <div key={bill.id} style={{
-                        display:'flex', justifyContent:'space-between',
-                        padding:'8px 0',
-                        borderBottom:'1px solid #f1f5f9'
-                      }}>
-                        <div style={{ flex:1 }}>
-                          <span style={{ fontWeight:'500', color:'#475569' }}>
-                            {bill.siteName}
-                          </span>
-                          <span style={{ color:'#94a3b8', marginLeft:'10px' }}>
-                            ({bill.accountName})
-                          </span>
-                        </div>
-
-                        <div style={{ display:'flex', gap:'20px', alignItems:'center' }}>
-                          <span style={{ color:'#64748b', fontSize:'13px' }}>
-                            Due: Day {bill.dueDate}
-                          </span>
-                          <span style={{
-                            fontWeight:'500', color:'#1e293b',
-                            minWidth:'100px', textAlign:'right'
-                          }}>
-                            ₱{bill.monthlyPayment.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ color:'#94a3b8', fontStyle:'italic', margin:0 }}>
-                    No bills for this week
-                  </p>
-                )}
-              </div>
-            ))}
-
-            <div style={{
-              marginTop:'20px', padding:'15px', backgroundColor:'#f8fafc',
-              borderRadius:'8px', display:'flex', justifyContent:'space-between'
-            }}>
-              <span style={{ fontSize:'18px', fontWeight:'600', color:'#334155' }}>
-                Monthly Total (Unpaid):
-              </span>
-              <span style={{
-                fontSize:'24px', fontWeight:'bold', color:'#ef4444'
-              }}>
-                ₱{payments.filter(p => {
-                  if (isCoveredByAdvancePayment(p)) return false;
-                  if (p.remarks === 'Paid') return false;
-                  return true;
-                }).reduce((sum, bill) => sum + bill.monthlyPayment, 0).toLocaleString()}
-              </span>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ⭐ NEW: WEEKLY SUMMARY BY PHASE MODAL */}
       {isPhaseSummaryOpen && (
         <div style={{
-          position:'fixed', top:0, left:0, right:0, bottom:0,
+          position:'fixed', top:85, left:0, right:0, bottom:0,
           background:'rgba(0,0,0,.5)', display:'flex',
           justifyContent:'center', alignItems:'center', zIndex:1000
         }}>
@@ -600,7 +444,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
             background:'white', padding:'30px', borderRadius:'8px',
             width:'90%', maxWidth:'900px', maxHeight:'80vh', overflow:'auto'
           }}>
-            
             <div style={{
               display:'flex', justifyContent:'space-between',
               alignItems:'center', marginBottom:'20px'
@@ -641,16 +484,6 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
                   </button>
                 </div>
 
-                <div style={{ marginTop:'15px' }}>
-                  <strong>Total (All Phases):</strong>
-                  <span style={{
-                    marginLeft:'10px', fontSize:'18px',
-                    color:'#ef4444', fontWeight:'bold'
-                  }}>
-                    ₱{week.totalAllPhases.toLocaleString()}
-                  </span>
-                </div>
-
                 {Object.keys(week.phases).length === 0 && (
                   <p style={{ color:'#94a3b8', fontStyle:'italic' }}>
                     No bills for this week
@@ -663,10 +496,7 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
                     border:'1px solid #f1f5f9', borderRadius:'6px'
                   }}>
                     <h4 style={{ margin:0, marginBottom:'8px', color:'#334155' }}>
-                       {phase.phase} — Total: 
-                      <span style={{ color:'#ef4444', marginLeft:'5px' }}>
-                        ₱{phase.total.toLocaleString()}
-                      </span>
+                       {phase.phase} 
                     </h4>
 
                     {phase.bills.map(bill => (
@@ -680,21 +510,88 @@ export const Dashboard = ({ payments, onUpdate, onAddHistory }) => {
                             ({bill.accountName})
                           </span>
                         </div>
-
-                        <div style={{ width:'200px', textAlign:'right' }}>
+                        <div style={{ width:'200px', textAlign:'right'}}>
                           <span style={{ marginRight:'10px', color:'#64748b' }}>
                             Day {bill.dueDate}
                           </span>
                           <strong>₱{bill.monthlyPayment.toLocaleString()}</strong>
                         </div>
+                        
                       </div>
                     ))}
+                    <div style={{ marginTop: '15px', textAlign: 'right' }}>
+                    <strong> Total: </strong> 
+                      <span style={{ color:'#ef4444', fontWeight: 'bold', marginLeft: '5px' }}>
+                         ₱{phase.total.toLocaleString()}
+                      </span>
+                      </div>
                   </div>
+                  
                 ))}
-
+                 <div style={{ marginTop:'15px',textAlign: 'right' }}>
+                  <strong>Total Amount (Weekly):</strong>
+                  <span style={{
+                    marginLeft:'10px', fontSize:'18px',
+                    color:'#ef4444', fontWeight:'bold',
+                  }}>
+                    ₱{week.totalAllPhases.toLocaleString()}
+                  </span>
+                </div>
               </div>
             ))}
 
+            <div style={{
+              marginTop:'30px', padding:'20px', backgroundColor:'#f0fdf4',
+              borderRadius:'8px', border:'2px solid #10b981'
+            }}>
+              <h3 style={{ margin:'0 0 15px 0', color:'#334155', fontSize:'20px' }}>
+                Monthly Summary by Phase
+              </h3>
+              {(() => {
+                const phaseTotals = {};
+                let grandTotal = 0;
+
+                calculatePhaseWeeklySummary().forEach(week => {
+                  Object.values(week.phases).forEach(phase => {
+                    if (!phaseTotals[phase.phase]) {
+                      phaseTotals[phase.phase] = 0;
+                    }
+                    phaseTotals[phase.phase] += phase.total;
+                  });
+                  grandTotal += week.totalAllPhases;
+                });
+
+                return (
+                  <>
+                    {Object.entries(phaseTotals).map(([phase, total]) => (
+                      <div key={phase} style={{
+                        display:'flex', justifyContent:'space-between',
+                        padding:'10px 0', borderBottom:'1px solid #d1fae5'
+                      }}>
+                        <span style={{ fontSize:'16px', color:'#334155', fontWeight:'500' }}>
+                          {phase}
+                        </span>
+                        <span style={{ fontSize:'18px', color:'#ef4444', fontWeight:'600' }}>
+                          ₱{total.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{
+                      display:'flex', justifyContent:'space-between',
+                      padding:'15px 0', marginTop:'10px',
+                      borderTop:'2px solid #10b981'
+                    }}>
+                      <span style={{ fontSize:'18px', color:'#0f172a', fontWeight:'700' }}>
+                        Grand Total (All Phases):
+                      </span>
+                      <span style={{ fontSize:'24px', color:'#ef4444', fontWeight:'700' }}>
+                        ₱{grandTotal.toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
